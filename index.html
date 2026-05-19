@@ -1,0 +1,1276 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>星际粉碎机 3D</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%2307131b'/%3E%3Cpath d='M13 40h38v8H13zM20 18h24v12H20z' fill='%2337e8ff'/%3E%3Cpath d='M18 33h28l-5 7H23z' fill='%239dff7c'/%3E%3C/svg%3E">
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; background: #061015; color: #e8fbff; font-family: "Microsoft YaHei", Arial, sans-serif; overflow: hidden; }
+    body { touch-action: none; }
+    #game {
+      position: fixed;
+      inset: 0;
+      background: linear-gradient(180deg, #07131b 0%, #091b1f 48%, #120b17 100%);
+    }
+    #scene { display: block; width: 100%; height: 100%; cursor: crosshair; }
+    .hud {
+      position: fixed;
+      left: 0;
+      right: 0;
+      top: 0;
+      display: grid;
+      grid-template-columns: minmax(210px, 1fr) auto;
+      gap: 10px;
+      align-items: start;
+      padding: 12px;
+      pointer-events: none;
+    }
+    .title, .stats, .tools, .notice, .shop {
+      border: 1px solid #45f6ff55;
+      background: rgba(4, 17, 24, .76);
+      box-shadow: 0 0 24px #00eaff18;
+      backdrop-filter: blur(8px);
+    }
+    .title { min-width: 0; padding: 10px 12px; border-radius: 8px; }
+    h1 {
+      margin: 0 0 4px;
+      font-size: clamp(18px, 3vw, 28px);
+      line-height: 1.05;
+      color: #7ffaff;
+      text-shadow: 0 0 18px #20f7ff99;
+    }
+    .subtitle { margin: 0; font-size: clamp(11px, 2vw, 13px); color: #bdf8d5; line-height: 1.45; }
+    .stats {
+      min-width: min(350px, 48vw);
+      padding: 10px;
+      border-radius: 8px;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(54px, 1fr));
+      gap: 8px;
+      text-align: center;
+    }
+    .stat span { display: block; color: #8fa7b2; font-size: 11px; }
+    .stat strong {
+      display: block;
+      margin-top: 2px;
+      font-size: clamp(16px, 3vw, 23px);
+      color: #ffe06c;
+      font-variant-numeric: tabular-nums;
+    }
+    .shop {
+      grid-column: 1 / -1;
+      border-radius: 8px;
+      padding: 9px 10px;
+      pointer-events: auto;
+      display: grid;
+      grid-template-columns: 1fr minmax(210px, 320px);
+      gap: 10px;
+    }
+    .shop-head {
+      grid-column: 1 / -1;
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: baseline;
+      color: #dffcff;
+      font-size: 13px;
+      line-height: 1.35;
+    }
+    .shop-head strong { color: #9dff7c; font-size: 14px; }
+    .shop-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(118px, 1fr));
+      gap: 8px;
+      min-width: 0;
+    }
+    .shop-card {
+      min-height: 86px;
+      border: 1px solid #62f4ff38;
+      border-radius: 8px;
+      padding: 8px;
+      background: rgba(5, 25, 34, .78);
+      display: grid;
+      gap: 5px;
+      align-content: start;
+    }
+    .shop-card b { color: #ffffff; font-size: 13px; line-height: 1.2; }
+    .shop-card span { color: #9fb5bd; font-size: 11px; line-height: 1.25; }
+    .shop-card button { min-height: 30px; padding: 0 8px; font-size: 12px; border-radius: 7px; }
+    .shop-card.locked button { border-color: #ffe06c88; color: #fff4bd; background: #2c2410; }
+    .shop-card.unlocked button { border-color: #9dff7c88; color: #eaffd7; background: #173320; }
+    .showcase {
+      min-width: 0;
+      border: 1px solid #9dff7c33;
+      border-radius: 8px;
+      padding: 8px;
+      background: rgba(11, 26, 28, .75);
+    }
+    .showcase-title { display: flex; justify-content: space-between; color: #9dff7c; font-size: 12px; margin-bottom: 6px; }
+    .showcase-items { display: flex; flex-wrap: wrap; gap: 6px; min-height: 31px; align-content: flex-start; }
+    .badge {
+      border: 1px solid #ffffff2d;
+      border-radius: 999px;
+      padding: 5px 8px;
+      background: rgba(255,255,255,.07);
+      color: #ecffff;
+      font-size: 11px;
+      white-space: nowrap;
+    }
+    .empty { color: #8fa7b2; font-size: 12px; line-height: 31px; }
+    .tools {
+      position: fixed;
+      left: 50%;
+      bottom: 14px;
+      transform: translateX(-50%);
+      width: min(900px, calc(100vw - 20px));
+      border-radius: 8px;
+      padding: 10px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: center;
+    }
+    .tool-buttons, .system-buttons { display: flex; gap: 8px; min-width: 0; }
+    button {
+      min-height: 42px;
+      border: 1px solid #5efcff66;
+      border-radius: 8px;
+      background: #0d2630;
+      color: #eaffff;
+      font-weight: 700;
+      font-size: 14px;
+      padding: 0 12px;
+      cursor: pointer;
+      transition: transform .12s, border-color .12s, background .12s, box-shadow .12s, opacity .12s;
+    }
+    button:hover { transform: translateY(-1px); border-color: #9ffcff; box-shadow: 0 0 20px #0ff4; }
+    button:disabled { cursor: default; opacity: .45; transform: none; box-shadow: none; }
+    button.active { background: #123a35; border-color: #9dff7c; color: #eaffd7; box-shadow: 0 0 22px #6cff5c3d; }
+    #hammerBtn.active { background: #3a1521; border-color: #ff6d98; color: #fff1f6; box-shadow: 0 0 22px #ff4d7b40; }
+    #laserBtn.active { background: #2b1640; border-color: #c987ff; color: #f7eaff; box-shadow: 0 0 22px #b35cff40; }
+    #gravityBtn.active { background: #30280f; border-color: #ffe06c; color: #fff8cc; box-shadow: 0 0 22px #ffe06c3d; }
+    #sawBtn.active { background: #102c39; border-color: #6cf0ff; color: #e9fdff; box-shadow: 0 0 22px #6cf0ff38; }
+    #freezeBtn.active { background: #112d4b; border-color: #91c9ff; color: #edf7ff; box-shadow: 0 0 22px #70bfff38; }
+    #magnetBtn.active { background: #321b3c; border-color: #ff8cff; color: #fff0ff; box-shadow: 0 0 22px #ff8cff38; }
+    #voidBtn.active { background: #151515; border-color: #ffffff; color: #ffffff; box-shadow: 0 0 22px #ffffff33; }
+    .notice {
+      position: fixed;
+      left: 12px;
+      bottom: 82px;
+      max-width: min(460px, calc(100vw - 24px));
+      border-radius: 8px;
+      padding: 9px 12px;
+      color: #dffcff;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    #loading {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background: #061015;
+      color: #bdf8d5;
+      font-size: 16px;
+      text-align: center;
+      z-index: 10;
+    }
+    @media (max-width: 900px) {
+      .hud { grid-template-columns: 1fr; padding: 8px; }
+      .stats { width: 100%; min-width: 0; }
+      .shop { grid-template-columns: 1fr; max-height: 34vh; overflow: auto; }
+      .shop-grid { grid-template-columns: repeat(2, minmax(120px, 1fr)); }
+      .shop-head { display: block; }
+      .tools { grid-template-columns: 1fr; bottom: 8px; }
+      .tool-buttons, .system-buttons { width: 100%; }
+      .tool-buttons { flex-wrap: wrap; }
+      .tool-buttons button { flex: 1 1 calc(25% - 8px); min-width: 62px; }
+      .system-buttons button { flex: 1 1 0; }
+      button { padding: 0 7px; font-size: 12px; }
+      .notice { bottom: 176px; left: 8px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="game">
+    <canvas id="scene"></canvas>
+  </div>
+  <div class="hud">
+    <section class="title">
+      <h1>星际粉碎机 3D</h1>
+      <p class="subtitle">点物品粉碎。用分数买高级物品，它们会进展示栏，也会更常出现在传送带上。</p>
+    </section>
+    <section class="stats">
+      <div class="stat"><span>分数</span><strong id="score">0</strong></div>
+      <div class="stat"><span>连击</span><strong id="combo">0</strong></div>
+      <div class="stat"><span>粉碎</span><strong id="broken">0</strong></div>
+      <div class="stat"><span>收藏</span><strong id="owned">0</strong></div>
+    </section>
+    <section class="shop">
+      <div class="shop-head">
+        <strong>升级商店</strong>
+        <span>买下高级展示品后，它会被收藏，也会加入传送带。高级物品粉碎得分更高。</span>
+      </div>
+      <div class="shop-grid" id="shopItems"></div>
+      <div class="showcase">
+        <div class="showcase-title"><span>展示栏</span><span id="showcaseCount">0 件</span></div>
+        <div class="showcase-items" id="showcaseItems"></div>
+      </div>
+    </section>
+  </div>
+  <section class="notice" id="notice">科幻传送带已启动。选一个工具，然后点传送带上的物品。</section>
+  <section class="tools">
+    <div class="tool-buttons">
+      <button id="crusherBtn" class="active" title="按 1">粉碎机 1</button>
+      <button id="hammerBtn" title="按 2">锤子 2</button>
+      <button id="laserBtn" title="按 3">激光 3</button>
+      <button id="gravityBtn" title="按 4">重压器 4</button>
+      <button id="sawBtn" title="按 5">电锯 5</button>
+      <button id="freezeBtn" title="按 6">冰爆 6</button>
+      <button id="magnetBtn" title="按 7">磁撕 7</button>
+      <button id="voidBtn" title="按 8">黑洞 8</button>
+    </div>
+    <div class="system-buttons">
+      <button id="pauseBtn" title="按 P">暂停 P</button>
+      <button id="resetBtn" title="按 R">重开 R</button>
+    </div>
+  </section>
+  <div id="loading">正在连接 3D 引擎...</div>
+
+  <script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
+  <script>
+    const canvas = document.getElementById("scene");
+    const loading = document.getElementById("loading");
+    const scoreEl = document.getElementById("score");
+    const comboEl = document.getElementById("combo");
+    const brokenEl = document.getElementById("broken");
+    const ownedEl = document.getElementById("owned");
+    const noticeEl = document.getElementById("notice");
+    const shopItemsEl = document.getElementById("shopItems");
+    const showcaseItemsEl = document.getElementById("showcaseItems");
+    const showcaseCountEl = document.getElementById("showcaseCount");
+    const crusherBtn = document.getElementById("crusherBtn");
+    const hammerBtn = document.getElementById("hammerBtn");
+    const laserBtn = document.getElementById("laserBtn");
+    const gravityBtn = document.getElementById("gravityBtn");
+    const sawBtn = document.getElementById("sawBtn");
+    const freezeBtn = document.getElementById("freezeBtn");
+    const magnetBtn = document.getElementById("magnetBtn");
+    const voidBtn = document.getElementById("voidBtn");
+    const pauseBtn = document.getElementById("pauseBtn");
+    const resetBtn = document.getElementById("resetBtn");
+
+    if (!window.THREE) {
+      loading.textContent = "3D 引擎没有加载成功。请联网后刷新页面。";
+      throw new Error("THREE failed to load");
+    }
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x07131b);
+    scene.fog = new THREE.Fog(0x07131b, 14, 34);
+
+    const camera = new THREE.PerspectiveCamera(48, 1, .1, 80);
+    camera.position.set(0, 6.2, 10.8);
+    camera.lookAt(0, .7, 0);
+
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.outputEncoding = THREE.sRGBEncoding;
+
+    const raycaster = new THREE.Raycaster();
+    const pointer = new THREE.Vector2();
+    const clickables = [];
+    const items = [];
+    const shards = [];
+    const sparks = [];
+    const beltStrips = [];
+
+    const state = {
+      tool: "crusher",
+      score: 0,
+      combo: 0,
+      broken: 0,
+      paused: false,
+      spawnTimer: 0,
+      lastBreakAt: 0,
+      time: 0,
+      recentSpawnIds: [],
+      owned: {}
+    };
+
+    const mats = {
+      belt: new THREE.MeshStandardMaterial({ color: 0x142831, roughness: .55, metalness: .45 }),
+      beltLine: new THREE.MeshStandardMaterial({ color: 0x37e8ff, emissive: 0x0bb7d8, emissiveIntensity: 1.3 }),
+      metal: new THREE.MeshStandardMaterial({ color: 0x768790, roughness: .28, metalness: .78 }),
+      darkMetal: new THREE.MeshStandardMaterial({ color: 0x19272d, roughness: .36, metalness: .7 }),
+      crusher: new THREE.MeshStandardMaterial({ color: 0x245a63, emissive: 0x06242c, roughness: .2, metalness: .9 }),
+      hammer: new THREE.MeshStandardMaterial({ color: 0xd8d8dd, roughness: .18, metalness: .85 }),
+      handle: new THREE.MeshStandardMaterial({ color: 0x26353b, roughness: .32, metalness: .75 }),
+      greenGlow: new THREE.MeshStandardMaterial({ color: 0x9dff7c, emissive: 0x4bff2b, emissiveIntensity: 1.2 }),
+      pinkGlow: new THREE.MeshStandardMaterial({ color: 0xff6d98, emissive: 0xff1d6b, emissiveIntensity: 1.1 }),
+      violetGlow: new THREE.MeshStandardMaterial({ color: 0xc987ff, emissive: 0x8d35ff, emissiveIntensity: 1.2 }),
+      amberGlow: new THREE.MeshStandardMaterial({ color: 0xffd15e, emissive: 0xff9200, emissiveIntensity: 1.0 }),
+      blueGlow: new THREE.MeshStandardMaterial({ color: 0x91c9ff, emissive: 0x3d9cff, emissiveIntensity: 1.2, transparent: true, opacity: .72 }),
+      whiteGlow: new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xc7f7ff, emissiveIntensity: 1.1 }),
+      voidCore: new THREE.MeshStandardMaterial({ color: 0x050507, emissive: 0x170044, emissiveIntensity: .9, roughness: .18, metalness: .35 })
+    };
+
+    const baseItemTypes = [
+      { id: "core", name: "能量核心", shape: "sphere", color: 0x9dff7c, value: 80 },
+      { id: "cube", name: "数据方块", shape: "box", color: 0x46e7ff, value: 65 },
+      { id: "pod", name: "无人机舱", shape: "capsule", color: 0xff6d98, value: 90 },
+      { id: "barrel", name: "钛合金桶", shape: "cylinder", color: 0xffd15e, value: 70 },
+      { id: "battery", name: "等离子电池", shape: "battery", color: 0x6cf0ff, value: 105 },
+      { id: "prism", name: "记忆棱晶", shape: "crystal", color: 0xc987ff, value: 120 }
+    ];
+
+    const premiumItemTypes = [
+      { id: "robot", name: "精密机器人", shape: "robot", color: 0x8ee7ff, value: 260, cost: 420, desc: "很多零件，爆碎更大" },
+      { id: "mech", name: "微型机甲", shape: "mech", color: 0xff6d98, value: 420, cost: 760, desc: "高价值装甲收藏" },
+      { id: "reactor", name: "反应炉核心", shape: "reactor", color: 0x9dff7c, value: 620, cost: 1120, desc: "粉碎后分数飞快涨" },
+      { id: "starship", name: "星舰模型", shape: "starship", color: 0xffd15e, value: 880, cost: 1680, desc: "展示栏里的大件" }
+    ];
+
+    const itemById = {};
+    [...baseItemTypes, ...premiumItemTypes].forEach(type => itemById[type.id] = type);
+
+    const clock = new THREE.Clock();
+    const crusher = createCrusher();
+    const hammer = createHammer();
+    const laser = createLaser();
+    const gravityPress = createGravityPress();
+    const saw = createSaw();
+    const freezer = createFreezer();
+    const magnet = createMagnet();
+    const voidTool = createVoidTool();
+    scene.add(crusher.group, hammer, laser, gravityPress, saw, freezer, magnet, voidTool);
+    hammer.visible = false;
+    laser.visible = false;
+    gravityPress.visible = false;
+    saw.visible = false;
+    freezer.visible = false;
+    magnet.visible = false;
+    voidTool.visible = false;
+
+    setupLights();
+    setupWorld();
+    resetGame();
+    loading.remove();
+    resize();
+    requestAnimationFrame(loop);
+
+    function setupLights() {
+      const hemi = new THREE.HemisphereLight(0x8df6ff, 0x241025, 1.3);
+      scene.add(hemi);
+      const key = new THREE.DirectionalLight(0xffffff, 1.8);
+      key.position.set(-5, 9, 5);
+      key.castShadow = true;
+      key.shadow.mapSize.set(1024, 1024);
+      scene.add(key);
+      const cyan = new THREE.PointLight(0x32e6ff, 1.5, 16);
+      cyan.position.set(-5, 4, 2);
+      scene.add(cyan);
+      const rose = new THREE.PointLight(0xff4e85, 1.1, 14);
+      rose.position.set(5, 3.2, -3);
+      scene.add(rose);
+    }
+
+    function setupWorld() {
+      const floor = new THREE.Mesh(
+        new THREE.PlaneGeometry(26, 18),
+        new THREE.MeshStandardMaterial({ color: 0x071016, roughness: .8, metalness: .25 })
+      );
+      floor.rotation.x = -Math.PI / 2;
+      floor.position.y = -.04;
+      floor.receiveShadow = true;
+      scene.add(floor);
+
+      const grid = new THREE.GridHelper(26, 26, 0x2af3ff, 0x173640);
+      grid.position.y = .01;
+      scene.add(grid);
+
+      const belt = new THREE.Mesh(new THREE.BoxGeometry(14.6, .26, 2.7), mats.belt);
+      belt.position.set(0, .18, 0);
+      belt.receiveShadow = true;
+      scene.add(belt);
+
+      for (let i = 0; i < 12; i++) {
+        const strip = new THREE.Mesh(new THREE.BoxGeometry(.72, .035, 2.78), mats.beltLine);
+        strip.position.set(-7 + i * 1.3, .34, 0);
+        beltStrips.push(strip);
+        scene.add(strip);
+      }
+
+      scene.add(makeRail(-1.55), makeRail(1.55));
+
+      for (let x = -8; x <= 8; x += 4) {
+        const tower = new THREE.Mesh(new THREE.CylinderGeometry(.08, .12, 2.8, 8), mats.darkMetal);
+        tower.position.set(x, 1.35, -3.6);
+        tower.castShadow = true;
+        const lamp = new THREE.Mesh(new THREE.SphereGeometry(.16, 16, 12), mats.greenGlow);
+        lamp.position.set(x, 2.85, -3.6);
+        scene.add(tower, lamp);
+      }
+    }
+
+    function makeRail(z) {
+      const rail = new THREE.Group();
+      const bar = new THREE.Mesh(new THREE.BoxGeometry(14.8, .12, .12), mats.metal);
+      bar.position.set(0, .62, z);
+      rail.add(bar);
+      for (let x = -7; x <= 7; x += 2) {
+        const post = new THREE.Mesh(new THREE.BoxGeometry(.1, .7, .1), mats.darkMetal);
+        post.position.set(x, .55, z);
+        rail.add(post);
+      }
+      return rail;
+    }
+
+    function createCrusher() {
+      const group = new THREE.Group();
+      group.position.set(2.25, .55, 0);
+      const frame = new THREE.Mesh(new THREE.BoxGeometry(1.7, 2.25, 3.05), mats.darkMetal);
+      frame.position.y = .88;
+      frame.castShadow = true;
+      group.add(frame);
+      const hole = new THREE.Mesh(new THREE.BoxGeometry(1.82, 1.35, 2.25), new THREE.MeshStandardMaterial({ color: 0x07131b, roughness: .7, metalness: .25 }));
+      hole.position.set(0, .88, 0);
+      group.add(hole);
+      const topJaw = new THREE.Mesh(new THREE.BoxGeometry(1.95, .32, 2.6), mats.crusher);
+      topJaw.position.set(0, 1.6, 0);
+      topJaw.castShadow = true;
+      const bottomJaw = new THREE.Mesh(new THREE.BoxGeometry(1.95, .32, 2.6), mats.crusher);
+      bottomJaw.position.set(0, .33, 0);
+      bottomJaw.castShadow = true;
+      const glow = new THREE.Mesh(new THREE.TorusGeometry(1.18, .025, 8, 48), mats.greenGlow);
+      glow.rotation.x = Math.PI / 2;
+      glow.position.set(0, 1.02, 0);
+      group.add(topJaw, bottomJaw, glow);
+      return { group, topJaw, bottomJaw, glow, bite: 0 };
+    }
+
+    function createHammer() {
+      const group = new THREE.Group();
+      const head = new THREE.Mesh(new THREE.BoxGeometry(1.35, .55, .7), mats.hammer);
+      head.castShadow = true;
+      const faceA = new THREE.Mesh(new THREE.BoxGeometry(.12, .64, .78), mats.pinkGlow);
+      faceA.position.x = -.73;
+      const faceB = faceA.clone();
+      faceB.position.x = .73;
+      const handle = new THREE.Mesh(new THREE.CylinderGeometry(.08, .1, 2.2, 12), mats.handle);
+      handle.position.y = -1.08;
+      handle.castShadow = true;
+      group.add(head, faceA, faceB, handle);
+      group.rotation.z = -.55;
+      group.position.set(0, 5, 0);
+      group.userData.anim = null;
+      return group;
+    }
+
+    function createLaser() {
+      const group = new THREE.Group();
+      const emitter = new THREE.Mesh(new THREE.CylinderGeometry(.18, .24, .9, 18), mats.violetGlow);
+      emitter.rotation.z = Math.PI / 2;
+      const beam = new THREE.Mesh(new THREE.CylinderGeometry(.055, .055, 5.2, 12), mats.violetGlow);
+      beam.rotation.z = Math.PI / 2;
+      beam.position.x = -2.55;
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(.42, .025, 8, 36), mats.violetGlow);
+      ring.rotation.y = Math.PI / 2;
+      group.add(emitter, beam, ring);
+      group.position.set(0, 2.4, 0);
+      group.userData.anim = null;
+      return group;
+    }
+
+    function createGravityPress() {
+      const group = new THREE.Group();
+      const plate = new THREE.Mesh(new THREE.CylinderGeometry(.78, .78, .18, 36), mats.amberGlow);
+      plate.castShadow = true;
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(.95, .035, 8, 48), mats.amberGlow);
+      ring.rotation.x = Math.PI / 2;
+      const core = new THREE.Mesh(new THREE.SphereGeometry(.18, 16, 12), mats.amberGlow);
+      group.add(plate, ring, core);
+      group.userData.anim = null;
+      return group;
+    }
+
+    function createSaw() {
+      const group = new THREE.Group();
+      const blade = new THREE.Mesh(new THREE.CylinderGeometry(.72, .72, .08, 24), mats.whiteGlow);
+      blade.rotation.x = Math.PI / 2;
+      const hub = new THREE.Mesh(new THREE.SphereGeometry(.16, 16, 12), mats.blueGlow);
+      const guard = new THREE.Mesh(new THREE.TorusGeometry(.84, .035, 8, 36), mats.blueGlow);
+      guard.rotation.x = Math.PI / 2;
+      group.add(blade, hub, guard);
+      group.userData.anim = null;
+      group.userData.blade = blade;
+      return group;
+    }
+
+    function createFreezer() {
+      const group = new THREE.Group();
+      const shell = new THREE.Mesh(new THREE.SphereGeometry(.86, 24, 14), mats.blueGlow);
+      const ringA = new THREE.Mesh(new THREE.TorusGeometry(.98, .025, 8, 40), mats.whiteGlow);
+      const ringB = ringA.clone();
+      ringA.rotation.x = Math.PI / 2;
+      ringB.rotation.y = Math.PI / 2;
+      group.add(shell, ringA, ringB);
+      group.userData.anim = null;
+      return group;
+    }
+
+    function createMagnet() {
+      const group = new THREE.Group();
+      const left = new THREE.Mesh(new THREE.BoxGeometry(.26, .9, .28), mats.pinkGlow);
+      const right = left.clone();
+      left.position.x = -.45;
+      right.position.x = .45;
+      const bridge = new THREE.Mesh(new THREE.BoxGeometry(1.16, .22, .28), mats.violetGlow);
+      bridge.position.y = .42;
+      const field = new THREE.Mesh(new THREE.TorusGeometry(.82, .025, 8, 42), mats.violetGlow);
+      field.rotation.x = Math.PI / 2;
+      group.add(left, right, bridge, field);
+      group.userData.anim = null;
+      group.userData.field = field;
+      return group;
+    }
+
+    function createVoidTool() {
+      const group = new THREE.Group();
+      const core = new THREE.Mesh(new THREE.SphereGeometry(.38, 24, 16), mats.voidCore);
+      const ringA = new THREE.Mesh(new THREE.TorusGeometry(.72, .035, 8, 48), mats.violetGlow);
+      const ringB = new THREE.Mesh(new THREE.TorusGeometry(.96, .025, 8, 48), mats.whiteGlow);
+      ringA.rotation.x = Math.PI / 2;
+      ringB.rotation.y = Math.PI / 2;
+      group.add(core, ringA, ringB);
+      group.userData.anim = null;
+      return group;
+    }
+
+    function makeItem(type) {
+      const group = new THREE.Group();
+      const mat = new THREE.MeshStandardMaterial({
+        color: type.color,
+        emissive: type.color,
+        emissiveIntensity: type.cost ? .36 : .28,
+        roughness: .25,
+        metalness: .55
+      });
+
+      addShapeForType(group, type, mat);
+
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(type.cost ? .7 : .58, .025, 8, 32), type.cost ? mats.greenGlow : mats.amberGlow);
+      ring.rotation.x = Math.PI / 2;
+      ring.position.y = .01;
+      group.add(ring);
+
+      group.position.set(-7.6, type.cost ? 1.08 : .95, (Math.random() - .5) * 1.25);
+      group.rotation.y = Math.random() * Math.PI;
+      scene.add(group);
+
+      const item = {
+        group,
+        ring,
+        type,
+        speed: 1.12 + Math.random() * .34,
+        state: "belt",
+        target: new THREE.Vector3(2.25, 1.08, 0),
+        age: 0
+      };
+      group.userData.item = item;
+      clickables.push(group);
+      items.push(item);
+      return item;
+    }
+
+    function addShapeForType(group, type, mat) {
+      let mesh;
+      if (type.shape === "sphere") {
+        mesh = new THREE.Mesh(new THREE.SphereGeometry(.46, 24, 16), mat);
+        group.add(mesh);
+      } else if (type.shape === "box") {
+        mesh = new THREE.Mesh(new THREE.BoxGeometry(.78, .78, .78), mat);
+        group.add(mesh);
+      } else if (type.shape === "cylinder") {
+        mesh = new THREE.Mesh(new THREE.CylinderGeometry(.42, .42, .78, 24), mat);
+        mesh.rotation.z = Math.PI / 2;
+        group.add(mesh);
+      } else if (type.shape === "battery") {
+        mesh = new THREE.Mesh(new THREE.BoxGeometry(.58, .9, .58), mat);
+        const cap = new THREE.Mesh(new THREE.BoxGeometry(.28, .16, .28), mat);
+        cap.position.y = .53;
+        group.add(mesh, cap);
+      } else if (type.shape === "crystal") {
+        mesh = new THREE.Mesh(new THREE.OctahedronGeometry(.55, 0), mat);
+        group.add(mesh);
+      } else if (type.shape === "robot") {
+        const body = new THREE.Mesh(new THREE.BoxGeometry(.62, .72, .36), mat);
+        const head = new THREE.Mesh(new THREE.BoxGeometry(.48, .36, .34), mat);
+        head.position.y = .62;
+        const eye = new THREE.Mesh(new THREE.BoxGeometry(.32, .07, .03), mats.greenGlow);
+        eye.position.set(0, .63, .19);
+        const armA = new THREE.Mesh(new THREE.BoxGeometry(.16, .58, .16), mat);
+        armA.position.set(-.45, .05, 0);
+        const armB = armA.clone();
+        armB.position.x = .45;
+        const legA = new THREE.Mesh(new THREE.BoxGeometry(.18, .42, .18), mat);
+        legA.position.set(-.18, -.56, 0);
+        const legB = legA.clone();
+        legB.position.x = .18;
+        group.add(body, head, eye, armA, armB, legA, legB);
+      } else if (type.shape === "mech") {
+        const body = new THREE.Mesh(new THREE.BoxGeometry(.82, .72, .58), mat);
+        const cabin = new THREE.Mesh(new THREE.SphereGeometry(.28, 18, 12), mats.violetGlow);
+        cabin.position.y = .48;
+        const legA = new THREE.Mesh(new THREE.BoxGeometry(.22, .58, .28), mat);
+        legA.position.set(-.28, -.58, 0);
+        const legB = legA.clone();
+        legB.position.x = .28;
+        const cannon = new THREE.Mesh(new THREE.CylinderGeometry(.08, .1, .72, 12), mat);
+        cannon.rotation.z = Math.PI / 2;
+        cannon.position.set(.68, .12, 0);
+        group.add(body, cabin, legA, legB, cannon);
+      } else if (type.shape === "reactor") {
+        mesh = new THREE.Mesh(new THREE.SphereGeometry(.52, 24, 16), mat);
+        const ringA = new THREE.Mesh(new THREE.TorusGeometry(.7, .035, 8, 36), mats.greenGlow);
+        const ringB = ringA.clone();
+        ringA.rotation.x = Math.PI / 2;
+        ringB.rotation.y = Math.PI / 2;
+        group.add(mesh, ringA, ringB);
+      } else if (type.shape === "starship") {
+        mesh = new THREE.Mesh(new THREE.ConeGeometry(.42, 1.25, 4), mat);
+        mesh.rotation.z = -Math.PI / 2;
+        const wingA = new THREE.Mesh(new THREE.BoxGeometry(.48, .08, .72), mat);
+        wingA.position.set(-.12, -.14, 0);
+        const tail = new THREE.Mesh(new THREE.BoxGeometry(.18, .5, .18), mats.amberGlow);
+        tail.position.x = -.64;
+        group.add(mesh, wingA, tail);
+      } else {
+        mesh = new THREE.Mesh(new THREE.CylinderGeometry(.34, .34, 1.05, 22), mat);
+        mesh.rotation.z = Math.PI / 2;
+        const nose = new THREE.Mesh(new THREE.SphereGeometry(.34, 22, 12), mat);
+        nose.position.x = .52;
+        const tail = nose.clone();
+        tail.position.x = -.52;
+        group.add(mesh, nose, tail);
+      }
+      group.traverse(obj => {
+        if (obj.isMesh) {
+          obj.castShadow = true;
+          obj.receiveShadow = true;
+        }
+      });
+    }
+
+    function updateItem(item, dt) {
+      item.age += dt;
+      item.ring.rotation.z += dt * 2.2;
+
+      if (item.state === "belt") {
+        item.group.position.x += item.speed * dt;
+        item.group.rotation.y += dt * .8;
+        item.group.rotation.x += dt * .35;
+        if (item.group.position.x > 7.8) missItem(item);
+      }
+
+      if (item.state === "toCrusher") {
+        item.group.position.lerp(item.target, Math.min(1, dt * 6));
+        item.group.scale.y = Math.max(.25, item.group.scale.y - dt * 1.7);
+        item.group.rotation.y += dt * 5.5;
+        crusher.bite = Math.min(1, crusher.bite + dt * 4);
+        if (item.group.position.distanceTo(item.target) < .12 || item.group.scale.y <= .28) {
+          breakItem(item, "粉碎机咬碎了 " + item.type.name, { shardBoost: 0, multiplier: 1 });
+        }
+      }
+
+      if (item.state === "gravity") {
+        item.group.position.lerp(item.target, Math.min(1, dt * 7));
+        item.group.scale.y = Math.max(.14, item.group.scale.y - dt * 2.25);
+        item.group.scale.x = Math.min(1.35, item.group.scale.x + dt * .55);
+        item.group.scale.z = Math.min(1.35, item.group.scale.z + dt * .55);
+      }
+    }
+
+    function missItem(item) {
+      removeItem(item);
+      state.combo = 0;
+      setMessage("有一个物品溜走了，连击归零。");
+      updateHud();
+    }
+
+    function breakItem(item, text, options = {}) {
+      const pos = item.group.position.clone();
+      const color = item.type.color;
+      const isPremium = Boolean(item.type.cost);
+      const shardCount = (isPremium ? 42 : 26) + (options.shardBoost || 0);
+      removeItem(item);
+      makeExplosion(pos, color, shardCount);
+      state.broken += 1;
+      state.combo = Date.now() - state.lastBreakAt < 2400 ? state.combo + 1 : 1;
+      state.lastBreakAt = Date.now();
+      const comboBonus = Math.max(0, state.combo - 1) * 18;
+      const earned = Math.floor((item.type.value + comboBonus) * (options.multiplier || 1));
+      state.score += earned;
+      setMessage(text + "。+" + earned + " 分，碎片爆开了！");
+      updateHud();
+      renderShop();
+    }
+
+    function removeItem(item) {
+      const i = items.indexOf(item);
+      if (i >= 0) items.splice(i, 1);
+      const c = clickables.indexOf(item.group);
+      if (c >= 0) clickables.splice(c, 1);
+      scene.remove(item.group);
+      disposeGroup(item.group);
+    }
+
+    function disposeGroup(group) {
+      group.traverse(obj => {
+        if (obj.geometry) obj.geometry.dispose();
+        if (obj.material && !Object.values(mats).includes(obj.material)) obj.material.dispose();
+      });
+    }
+
+    function makeExplosion(pos, color, count) {
+      const shardMat = new THREE.MeshStandardMaterial({
+        color,
+        emissive: color,
+        emissiveIntensity: .45,
+        roughness: .35,
+        metalness: .55
+      });
+      for (let i = 0; i < count; i++) {
+        const size = .08 + Math.random() * .18;
+        const geo = Math.random() > .45
+          ? new THREE.TetrahedronGeometry(size)
+          : new THREE.BoxGeometry(size, size * .7, size * 1.4);
+        const shard = new THREE.Mesh(geo, shardMat);
+        shard.position.copy(pos);
+        shard.rotation.set(Math.random() * 6, Math.random() * 6, Math.random() * 6);
+        shard.castShadow = true;
+        const dir = new THREE.Vector3(Math.random() - .5, Math.random() * .9 + .25, Math.random() - .5).normalize();
+        shard.userData.velocity = dir.multiplyScalar(2.2 + Math.random() * 4.5);
+        shard.userData.spin = new THREE.Vector3(Math.random() * 7, Math.random() * 7, Math.random() * 7);
+        shard.userData.life = 1.1 + Math.random() * .8;
+        scene.add(shard);
+        shards.push(shard);
+      }
+      for (let i = 0; i < 12; i++) {
+        const spark = new THREE.Mesh(new THREE.SphereGeometry(.035, 8, 6), mats.amberGlow);
+        spark.position.copy(pos);
+        spark.userData.velocity = new THREE.Vector3(Math.random() - .5, Math.random() * .8 + .2, Math.random() - .5).normalize().multiplyScalar(3 + Math.random() * 3);
+        spark.userData.life = .45 + Math.random() * .35;
+        scene.add(spark);
+        sparks.push(spark);
+      }
+    }
+
+    function updateShards(dt) {
+      for (let i = shards.length - 1; i >= 0; i--) {
+        const s = shards[i];
+        s.userData.life -= dt;
+        s.userData.velocity.y -= dt * 4.3;
+        s.position.addScaledVector(s.userData.velocity, dt);
+        s.rotation.x += s.userData.spin.x * dt;
+        s.rotation.y += s.userData.spin.y * dt;
+        s.rotation.z += s.userData.spin.z * dt;
+        if (s.position.y < .08) {
+          s.position.y = .08;
+          s.userData.velocity.y *= -.25;
+          s.userData.velocity.x *= .78;
+          s.userData.velocity.z *= .78;
+        }
+        s.scale.setScalar(Math.max(0, s.userData.life));
+        if (s.userData.life <= 0) {
+          scene.remove(s);
+          s.geometry.dispose();
+          shards.splice(i, 1);
+        }
+      }
+      for (let i = sparks.length - 1; i >= 0; i--) {
+        const s = sparks[i];
+        s.userData.life -= dt;
+        s.position.addScaledVector(s.userData.velocity, dt);
+        s.scale.setScalar(Math.max(.01, s.userData.life * 1.8));
+        if (s.userData.life <= 0) {
+          scene.remove(s);
+          sparks.splice(i, 1);
+        }
+      }
+    }
+
+    function updateCrusher(dt) {
+      crusher.bite = Math.max(0, crusher.bite - dt * 2.2);
+      const idle = Math.sin(state.time * 3.2) * .04;
+      const bite = crusher.bite;
+      crusher.topJaw.position.y = 1.6 - bite * .48 + idle;
+      crusher.bottomJaw.position.y = .33 + bite * .28 - idle;
+      crusher.glow.rotation.z += dt * (1.2 + bite * 4);
+      crusher.glow.scale.setScalar(1 + bite * .2);
+    }
+
+    function updateHammer(dt) {
+      const anim = hammer.userData.anim;
+      if (!anim) return;
+      if (!items.includes(anim.item)) {
+        hammer.visible = false;
+        hammer.userData.anim = null;
+        return;
+      }
+      anim.t += dt;
+      const p = Math.min(1, anim.t / anim.duration);
+      const hitPoint = anim.item.group.position.clone();
+      const up = hitPoint.clone().add(new THREE.Vector3(-.7, 3.2, .25));
+      const down = hitPoint.clone().add(new THREE.Vector3(.1, 1.05, 0));
+      hammer.visible = true;
+      if (p < .55) {
+        const k = p / .55;
+        hammer.position.lerpVectors(up, down, k * k);
+        hammer.rotation.z = -.65 + k * 1.2;
+      } else {
+        const k = (p - .55) / .45;
+        hammer.position.lerpVectors(down, up, k);
+        hammer.rotation.z = .55 - k * 1.2;
+      }
+      if (!anim.didHit && p >= .55) {
+        anim.didHit = true;
+        breakItem(anim.item, "锤子砸爆了 " + anim.item.type.name, { shardBoost: 8, multiplier: 1.08 });
+      }
+      if (p >= 1) {
+        hammer.visible = false;
+        hammer.userData.anim = null;
+      }
+    }
+
+    function updateLaser(dt) {
+      const anim = laser.userData.anim;
+      if (!anim) return;
+      if (!items.includes(anim.item)) {
+        laser.visible = false;
+        laser.userData.anim = null;
+        return;
+      }
+      anim.t += dt;
+      const p = Math.min(1, anim.t / anim.duration);
+      const pos = anim.item.group.position;
+      laser.visible = true;
+      laser.position.set(pos.x + 2.65, pos.y + .65, pos.z);
+      laser.scale.set(1, 1 + Math.sin(state.time * 42) * .12, 1);
+      laser.rotation.x += dt * 8;
+      anim.item.group.rotation.y += dt * 10;
+      if (!anim.didHit && p > .34) {
+        anim.didHit = true;
+        breakItem(anim.item, "激光切碎了 " + anim.item.type.name, { shardBoost: 16, multiplier: 1.18 });
+      }
+      if (p >= 1) {
+        laser.visible = false;
+        laser.userData.anim = null;
+      }
+    }
+
+    function updateGravityPress(dt) {
+      const anim = gravityPress.userData.anim;
+      if (!anim) return;
+      if (!items.includes(anim.item)) {
+        gravityPress.visible = false;
+        gravityPress.userData.anim = null;
+        return;
+      }
+      anim.t += dt;
+      const p = Math.min(1, anim.t / anim.duration);
+      const pos = anim.item.group.position;
+      gravityPress.visible = true;
+      gravityPress.position.set(pos.x, 2.7 - Math.sin(p * Math.PI) * 1.2, pos.z);
+      gravityPress.rotation.y += dt * 5;
+      gravityPress.scale.setScalar(1 + Math.sin(p * Math.PI) * .35);
+      if (!anim.didHit && p > .56) {
+        anim.didHit = true;
+        breakItem(anim.item, "重压器压扁了 " + anim.item.type.name, { shardBoost: 22, multiplier: 1.32 });
+      }
+      if (p >= 1) {
+        gravityPress.visible = false;
+        gravityPress.userData.anim = null;
+      }
+    }
+
+    function updateSaw(dt) {
+      const anim = saw.userData.anim;
+      if (!anim) return;
+      if (!items.includes(anim.item)) {
+        saw.visible = false;
+        saw.userData.anim = null;
+        return;
+      }
+      anim.t += dt;
+      const p = Math.min(1, anim.t / anim.duration);
+      const pos = anim.item.group.position;
+      saw.visible = true;
+      saw.position.set(pos.x + Math.cos(p * Math.PI * 2) * .55, pos.y + .25, pos.z);
+      saw.userData.blade.rotation.z += dt * 42;
+      anim.item.group.rotation.z += dt * 8;
+      anim.item.group.scale.x = 1 + Math.sin(p * Math.PI) * .22;
+      if (!anim.didHit && p > .48) {
+        anim.didHit = true;
+        breakItem(anim.item, "电锯切爆了 " + anim.item.type.name, { shardBoost: 18, multiplier: 1.22 });
+      }
+      if (p >= 1) {
+        saw.visible = false;
+        saw.userData.anim = null;
+      }
+    }
+
+    function updateFreezer(dt) {
+      const anim = freezer.userData.anim;
+      if (!anim) return;
+      if (!items.includes(anim.item)) {
+        freezer.visible = false;
+        freezer.userData.anim = null;
+        return;
+      }
+      anim.t += dt;
+      const p = Math.min(1, anim.t / anim.duration);
+      const pos = anim.item.group.position;
+      freezer.visible = true;
+      freezer.position.copy(pos);
+      freezer.scale.setScalar(.45 + Math.sin(p * Math.PI) * .85);
+      freezer.rotation.y += dt * 5;
+      anim.item.group.scale.setScalar(1 - Math.sin(p * Math.PI) * .18);
+      if (!anim.didHit && p > .58) {
+        anim.didHit = true;
+        breakItem(anim.item, "冰爆冻裂了 " + anim.item.type.name, { shardBoost: 28, multiplier: 1.16 });
+      }
+      if (p >= 1) {
+        freezer.visible = false;
+        freezer.userData.anim = null;
+      }
+    }
+
+    function updateMagnet(dt) {
+      const anim = magnet.userData.anim;
+      if (!anim) return;
+      if (!items.includes(anim.item)) {
+        magnet.visible = false;
+        magnet.userData.anim = null;
+        return;
+      }
+      anim.t += dt;
+      const p = Math.min(1, anim.t / anim.duration);
+      const pos = anim.item.group.position;
+      magnet.visible = true;
+      magnet.position.set(pos.x, pos.y + .85, pos.z);
+      magnet.userData.field.rotation.z += dt * 9;
+      magnet.scale.setScalar(1 + Math.sin(p * Math.PI) * .28);
+      anim.item.group.scale.x = 1 + Math.sin(p * Math.PI * 4) * .2;
+      anim.item.group.scale.z = 1 - Math.sin(p * Math.PI * 4) * .12;
+      if (!anim.didHit && p > .52) {
+        anim.didHit = true;
+        breakItem(anim.item, "磁力撕裂了 " + anim.item.type.name, { shardBoost: 32, multiplier: 1.38 });
+      }
+      if (p >= 1) {
+        magnet.visible = false;
+        magnet.userData.anim = null;
+      }
+    }
+
+    function updateVoidTool(dt) {
+      const anim = voidTool.userData.anim;
+      if (!anim) return;
+      if (!items.includes(anim.item)) {
+        voidTool.visible = false;
+        voidTool.userData.anim = null;
+        return;
+      }
+      anim.t += dt;
+      const p = Math.min(1, anim.t / anim.duration);
+      const pos = anim.item.group.position;
+      voidTool.visible = true;
+      voidTool.position.set(pos.x, pos.y + .18, pos.z);
+      voidTool.rotation.x += dt * 4;
+      voidTool.rotation.y += dt * 7;
+      voidTool.scale.setScalar(.35 + Math.sin(p * Math.PI) * .9);
+      anim.item.group.scale.setScalar(Math.max(.18, 1 - p * .85));
+      anim.item.group.rotation.y += dt * 14;
+      if (!anim.didHit && p > .68) {
+        anim.didHit = true;
+        breakItem(anim.item, "黑洞压缩了 " + anim.item.type.name, { shardBoost: 40, multiplier: 1.55 });
+      }
+      if (p >= 1) {
+        voidTool.visible = false;
+        voidTool.userData.anim = null;
+      }
+    }
+
+    function chooseSpawnType() {
+      const pool = [];
+      baseItemTypes.forEach(type => {
+        for (let i = 0; i < 4; i++) pool.push(type);
+      });
+      premiumItemTypes.forEach(type => {
+        const count = state.owned[type.id] || 0;
+        const weight = count ? Math.min(1 + count, 4) : 0;
+        for (let i = 0; i < weight; i++) pool.push(type);
+      });
+
+      const recent = new Set(state.recentSpawnIds.slice(-3));
+      let choices = pool.filter(type => !recent.has(type.id));
+      if (!choices.length) choices = pool;
+      return choices[Math.floor(Math.random() * choices.length)];
+    }
+
+    function spawnItem() {
+      const type = chooseSpawnType();
+      state.recentSpawnIds.push(type.id);
+      if (state.recentSpawnIds.length > 6) state.recentSpawnIds.shift();
+      makeItem(type);
+    }
+
+    function handlePick(item) {
+      if (!item || item.state !== "belt" || state.paused) return;
+      if (state.tool === "crusher") {
+        item.state = "toCrusher";
+        item.target.set(2.25, 1.06, 0);
+        setMessage(item.type.name + " 被吸进粉碎机。");
+      } else if (state.tool === "hammer") {
+        if (hammer.userData.anim) return;
+        item.state = "hammer";
+        hammer.userData.anim = { item, t: 0, duration: .48, didHit: false };
+        setMessage("锤子锁定 " + item.type.name + "。");
+      } else if (state.tool === "laser") {
+        if (laser.userData.anim) return;
+        item.state = "laser";
+        laser.userData.anim = { item, t: 0, duration: .42, didHit: false };
+        setMessage("激光准备切开 " + item.type.name + "。");
+      } else if (state.tool === "gravity") {
+        if (gravityPress.userData.anim) return;
+        item.state = "gravity";
+        item.target = item.group.position.clone();
+        gravityPress.userData.anim = { item, t: 0, duration: .62, didHit: false };
+        setMessage("重压器锁住 " + item.type.name + "。");
+      } else if (state.tool === "saw") {
+        if (saw.userData.anim) return;
+        item.state = "saw";
+        saw.userData.anim = { item, t: 0, duration: .5, didHit: false };
+        setMessage("电锯开始切割 " + item.type.name + "。");
+      } else if (state.tool === "freeze") {
+        if (freezer.userData.anim) return;
+        item.state = "freeze";
+        freezer.userData.anim = { item, t: 0, duration: .64, didHit: false };
+        setMessage("冰爆器冻结 " + item.type.name + "。");
+      } else if (state.tool === "magnet") {
+        if (magnet.userData.anim) return;
+        item.state = "magnet";
+        magnet.userData.anim = { item, t: 0, duration: .58, didHit: false };
+        setMessage("磁力撕裂器锁定 " + item.type.name + "。");
+      } else if (state.tool === "void") {
+        if (voidTool.userData.anim) return;
+        item.state = "void";
+        voidTool.userData.anim = { item, t: 0, duration: .74, didHit: false };
+        setMessage("黑洞压缩器吸住 " + item.type.name + "。");
+      }
+    }
+
+    function setTool(tool) {
+      state.tool = tool;
+      crusherBtn.classList.toggle("active", tool === "crusher");
+      hammerBtn.classList.toggle("active", tool === "hammer");
+      laserBtn.classList.toggle("active", tool === "laser");
+      gravityBtn.classList.toggle("active", tool === "gravity");
+      sawBtn.classList.toggle("active", tool === "saw");
+      freezeBtn.classList.toggle("active", tool === "freeze");
+      magnetBtn.classList.toggle("active", tool === "magnet");
+      voidBtn.classList.toggle("active", tool === "void");
+      const text = {
+        crusher: "粉碎机模式：点物品，把它送进压碎口。",
+        hammer: "锤子模式：点物品，直接砸出爆碎效果。",
+        laser: "激光模式：点物品，用能量束切碎它。",
+        gravity: "重压器模式：点物品，从上面压扁后爆碎。",
+        saw: "电锯模式：点物品，高速切割后爆开。",
+        freeze: "冰爆模式：点物品，先冻结再炸裂。",
+        magnet: "磁撕模式：点物品，用磁力把它撕开。",
+        void: "黑洞模式：点物品，压缩到极限再爆碎。"
+      };
+      setMessage(text[tool]);
+    }
+
+    function buyPremium(id) {
+      const type = itemById[id];
+      if (!type || !type.cost) return;
+      if (state.score < type.cost) {
+        setMessage("分数还不够买 " + type.name + "，再粉碎一些普通物品。");
+        return;
+      }
+      state.score -= type.cost;
+      state.owned[id] = (state.owned[id] || 0) + 1;
+      setMessage("买到了 " + type.name + "。它已放进展示栏，以后会随机加入传送带。");
+      updateHud();
+      renderShop();
+    }
+
+    function totalOwned() {
+      return Object.values(state.owned).reduce((sum, n) => sum + n, 0);
+    }
+
+    function renderShop() {
+      shopItemsEl.innerHTML = "";
+      premiumItemTypes.forEach(type => {
+        const count = state.owned[type.id] || 0;
+        const card = document.createElement("div");
+        card.className = "shop-card " + (count ? "unlocked" : "locked");
+        const buttonText = count ? "再买一个" : "购买";
+        card.innerHTML = `
+          <b>${type.name}</b>
+          <span>${type.desc}</span>
+          <span>价格 ${type.cost} / 粉碎 ${type.value} 分 / 收藏 ${count}</span>
+          <button ${state.score < type.cost ? "disabled" : ""}>${buttonText}</button>
+        `;
+        card.querySelector("button").addEventListener("click", () => buyPremium(type.id));
+        shopItemsEl.appendChild(card);
+      });
+
+      showcaseItemsEl.innerHTML = "";
+      premiumItemTypes.forEach(type => {
+        const count = state.owned[type.id] || 0;
+        if (!count) return;
+        const badge = document.createElement("span");
+        badge.className = "badge";
+        badge.textContent = type.name + " x" + count;
+        showcaseItemsEl.appendChild(badge);
+      });
+      const ownedCount = totalOwned();
+      showcaseCountEl.textContent = ownedCount + " 件";
+      if (!ownedCount) {
+        const empty = document.createElement("span");
+        empty.className = "empty";
+        empty.textContent = "还没有收藏，先赚分数购买。";
+        showcaseItemsEl.appendChild(empty);
+      }
+    }
+
+    function setMessage(text) {
+      noticeEl.textContent = text;
+    }
+
+    function updateHud() {
+      scoreEl.textContent = state.score;
+      comboEl.textContent = state.combo;
+      brokenEl.textContent = state.broken;
+      ownedEl.textContent = totalOwned();
+    }
+
+    function resetGame() {
+      while (items.length) removeItem(items[0]);
+      while (shards.length) {
+        const s = shards.pop();
+        scene.remove(s);
+        s.geometry.dispose();
+      }
+      while (sparks.length) {
+        const s = sparks.pop();
+        scene.remove(s);
+      }
+      state.score = 0;
+      state.combo = 0;
+      state.broken = 0;
+      state.recentSpawnIds = [];
+      state.owned = {};
+      state.spawnTimer = .2;
+      state.paused = false;
+      pauseBtn.textContent = "暂停 P";
+      setTool("crusher");
+      setMessage("新一轮启动。先粉碎普通物品，攒分数买高级展示品。");
+      updateHud();
+      renderShop();
+    }
+
+    function togglePause() {
+      state.paused = !state.paused;
+      pauseBtn.textContent = state.paused ? "继续 P" : "暂停 P";
+      setMessage(state.paused ? "游戏暂停。" : "继续粉碎。");
+    }
+
+    function onPointerDown(event) {
+      const rect = renderer.domElement.getBoundingClientRect();
+      pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(pointer, camera);
+      const hits = raycaster.intersectObjects(clickables, true);
+      if (!hits.length) return;
+      let obj = hits[0].object;
+      while (obj && !obj.userData.item) obj = obj.parent;
+      handlePick(obj ? obj.userData.item : null);
+    }
+
+    function resize() {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      renderer.setSize(w, h, false);
+      camera.aspect = w / h;
+      camera.position.z = w < 720 ? 12.4 : 10.8;
+      camera.position.y = w < 720 ? 7.1 : 6.2;
+      camera.updateProjectionMatrix();
+    }
+
+    function loop() {
+      requestAnimationFrame(loop);
+      const dt = Math.min(clock.getDelta(), .04);
+      if (!state.paused) {
+        state.time += dt;
+        state.spawnTimer -= dt;
+        if (state.spawnTimer <= 0) {
+          spawnItem();
+          state.spawnTimer = Math.max(.7, 1.48 - Math.min(.55, state.broken * .012));
+        }
+        for (let i = items.length - 1; i >= 0; i--) updateItem(items[i], dt);
+        updateShards(dt);
+        updateCrusher(dt);
+        updateHammer(dt);
+        updateLaser(dt);
+        updateGravityPress(dt);
+        updateSaw(dt);
+        updateFreezer(dt);
+        updateMagnet(dt);
+        updateVoidTool(dt);
+        beltStrips.forEach(strip => {
+          strip.position.x += dt * 2.4;
+          if (strip.position.x > 7.3) strip.position.x = -7.3;
+        });
+        if (Date.now() - state.lastBreakAt > 2600 && state.combo !== 0) {
+          state.combo = 0;
+          updateHud();
+        }
+      }
+      renderer.render(scene, camera);
+    }
+
+    window.addEventListener("resize", resize);
+    canvas.addEventListener("pointerdown", onPointerDown);
+    crusherBtn.addEventListener("click", () => setTool("crusher"));
+    hammerBtn.addEventListener("click", () => setTool("hammer"));
+    laserBtn.addEventListener("click", () => setTool("laser"));
+    gravityBtn.addEventListener("click", () => setTool("gravity"));
+    sawBtn.addEventListener("click", () => setTool("saw"));
+    freezeBtn.addEventListener("click", () => setTool("freeze"));
+    magnetBtn.addEventListener("click", () => setTool("magnet"));
+    voidBtn.addEventListener("click", () => setTool("void"));
+    pauseBtn.addEventListener("click", togglePause);
+    resetBtn.addEventListener("click", resetGame);
+    window.addEventListener("keydown", event => {
+      if (event.key === "1") setTool("crusher");
+      if (event.key === "2") setTool("hammer");
+      if (event.key === "3") setTool("laser");
+      if (event.key === "4") setTool("gravity");
+      if (event.key === "5") setTool("saw");
+      if (event.key === "6") setTool("freeze");
+      if (event.key === "7") setTool("magnet");
+      if (event.key === "8") setTool("void");
+      if (event.key.toLowerCase() === "p") togglePause();
+      if (event.key.toLowerCase() === "r") resetGame();
+    });
+  </script>
+</body>
+</html>
