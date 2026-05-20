@@ -67,6 +67,15 @@
       display: grid;
       grid-template-columns: 1fr minmax(210px, 320px);
       gap: 10px;
+      max-height: 154px;
+      overflow: hidden;
+      transition: max-height .18s ease, box-shadow .18s ease, background .18s ease;
+    }
+    .shop.expanded, .shop:hover, .shop:focus-within {
+      max-height: min(52vh, 470px);
+      overflow: auto;
+      background: rgba(4, 17, 24, .9);
+      box-shadow: 0 0 34px #00eaff2e;
     }
     .shop-head {
       grid-column: 1 / -1;
@@ -100,6 +109,9 @@
     .shop-card button { min-height: 30px; padding: 0 8px; font-size: 12px; border-radius: 7px; }
     .shop-card.locked button { border-color: #ffe06c88; color: #fff4bd; background: #2c2410; }
     .shop-card.unlocked button { border-color: #9dff7c88; color: #eaffd7; background: #173320; }
+    .shop:not(.expanded):not(:hover):not(:focus-within) .shop-card:nth-child(n+5) { display: none; }
+    .shop:not(.expanded):not(:hover):not(:focus-within) .showcase { display: none; }
+    .shop:not(.expanded):not(:hover):not(:focus-within) { grid-template-columns: 1fr; }
     .showcase {
       min-width: 0;
       border: 1px solid #9dff7c33;
@@ -197,7 +209,8 @@
     @media (max-width: 900px) {
       .hud { grid-template-columns: 1fr; padding: 8px; }
       .stats { width: 100%; min-width: 0; }
-      .shop { grid-template-columns: 1fr; max-height: 34vh; overflow: auto; }
+      .shop { grid-template-columns: 1fr; max-height: 178px; overflow: hidden; }
+      .shop.expanded, .shop:hover, .shop:focus-within { max-height: 34vh; overflow: auto; }
       .shop-grid { grid-template-columns: repeat(2, minmax(120px, 1fr)); }
       .shop-head { display: block; }
       .tools { grid-template-columns: 1fr; bottom: 8px; }
@@ -226,7 +239,7 @@
       <div class="stat"><span>收藏</span><strong id="owned">0</strong></div>
       <div class="stat"><span>工人</span><strong id="workers">0</strong></div>
     </section>
-    <section class="shop">
+    <section class="shop" tabindex="0">
       <div class="shop-head">
         <strong>升级商店</strong>
         <span>买下高级展示品后，它会被收藏，也会加入传送带。高级物品粉碎得分更高。</span>
@@ -1646,6 +1659,7 @@
     function setShopPause(paused) {
       if (state.shopPause === paused) return;
       state.shopPause = paused;
+      shopEl.classList.toggle("expanded", paused);
       if (paused) {
         state.pausedAt = Date.now();
         setMessage("购物暂停中：传送带、工人和连击倒计时都停住了。");
